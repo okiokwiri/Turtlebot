@@ -1,16 +1,14 @@
 ---
 
 # Notes:
-# Sample project C code is not presently written to produce a release artifact.
-# As such, release build options are disabled.
-# This sample, therefore, only demonstrates running a collection of unit tests.
+# This example project is setup to build release binaries for an ARM cortex M4 processor
 
 :project:
   :use_exceptions: FALSE
   :use_test_preprocessor: TRUE
   :use_auxiliary_dependencies: TRUE
   :build_root: build
-#  :release_build: TRUE
+  :release_build: TRUE
   :test_file_prefix: test_
   :which_ceedling: gem
   :ceedling_version: 0.31.1
@@ -20,14 +18,16 @@
 #:test_build:
 #  :use_assembly: TRUE
 
-#:release_build:
-#  :output: MyApp.out
-#  :use_assembly: FALSE
+:release_build:
+ :output: stmBase
+ :use_assembly: TRUE
+ :artifacts:
+    - stmBase.map
 
 :environment:
 
 :extension:
-  :executable: .out
+  :executable: .hex
 
 :paths:
   :test:
@@ -35,9 +35,18 @@
     - -:test/support
   :source:
     - src/**
+    - lib/**
+    - startup/**
+    - test/bsp
+
+  :include:
+
+  :release_toolchain_include:
+    - lib/CMSIS/Device/ST/STM32F4xx/Include/**
+    - lib/CMSIS/Include/**
+    - src/**
   :support:
     - test/support
-  :libraries: []
 
 :defines:
   # in order to add common defines:
@@ -75,10 +84,54 @@
     :html_medium_threshold: 75
     :html_high_threshold: 90
 
-#:tools:
-# Ceedling defaults to using gcc for compiling, linking, etc.
-# As [:tools] is blank, gcc will be used (so long as it's in your system path)
-# See documentation to configure a given toolchain for use
+:tools:
+  :release_compiler:
+    :executable: arm-none-eabi-gcc             #exists in system search path
+    :arguments:
+      - ${1}
+      - -DTARGET
+      - -mcpu=cortex-m4
+      - -mthumb
+      - -mfpu=fpv4-sp-d16 
+      - -mfloat-abi=hard
+      - -g
+      - -Isrc/
+      - -I"$": COLLECTION_PATHS_RELEASE_TOOLCHAIN_INCLUDE 
+      - -Wall
+      - -Os
+      - -c
+      - -o ${2}
+  :release_linker:
+    :executable: arm-none-eabi-gcc
+    :arguments:
+      - ${1}
+      - -DTARGET
+      - -Isrc/
+      - -I"$": COLLECTION_PATHS_RELEASE_TOOLCHAIN_INCLUDE 
+      - -mcpu=cortex-m4
+      - -mthumb
+      - -mfpu=fpv4-sp-d16 
+      - -mfloat-abi=hard
+      - -Wl,-Map="stmBase.map"
+      - -g
+      - -T"startup/STM32F446RETX_FLASH.ld"
+      - --specs=nosys.specs
+      - -o ${2}.elf
+  :release_assembler:
+    :executable: arm-none-eabi-gcc
+    :arguments:
+      - ${1}
+      - -DTARGET
+      - -I"$": COLLECTION_PATHS_RELEASE_TOOLCHAIN_INCLUDE 
+      - -mcpu=cortex-m4
+      - -mthumb
+      - -mfpu=fpv4-sp-d16 
+      - -mfloat-abi=hard
+      - -g
+      - -Wall
+      - -Os
+      - -c
+      - -o ${2}
 
 # LIBRARIES
 # These libraries are automatically injected into the build process. Those specified as
